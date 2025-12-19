@@ -1,0 +1,201 @@
+//clietn UDP
+//#define _WINSOCK_DEPRECATED_NO_WARNINGS
+//#include <winsock2.h>
+//#include <string>
+//#include <windows.h>
+//#include <iostream>
+//#pragma comment(lib, "ws2_32.lib")
+//#pragma warning(disable: 4996)
+//using namespace std;
+//#define PORT 666
+//#define SERVERADDR "127.0.0.1"
+//
+//int main()
+//{
+//    char buff[10 * 1014];
+//    cout << "UDP Demo Client\nType quit to quit \n";
+//    if (WSAStartup(0x202, (WSADATA*)&buff))
+//    {
+//        cout << "WSASTARTUP ERROR: " << WSAGetLastError() << "\n";
+//        return -1;
+//    }
+//    SOCKET my_sock = socket(AF_INET, SOCK_DGRAM, 0);
+//    if (my_sock == INVALID_SOCKET) {
+//        cout << "SOCKET() ERROR: " << WSAGetLastError() << "\n";
+//        WSACleanup();
+//        return -1;
+//    }
+//    HOSTENT* hst;
+//    sockaddr_in Daddr;    
+//    Daddr.sin_family = AF_INET;  
+//    Daddr.sin_port = htons(PORT);
+//
+//    if (inet_addr(SERVERADDR))
+//        Daddr.sin_addr.s_addr = inet_addr(SERVERADDR);
+//    else
+//        if (hst = gethostbyname(SERVERADDR))
+//            Daddr.sin_addr.s_addr = ((unsigned long**)hst->h_addr_list)[0][0];
+//        else {
+//            cout << "Unknown Host: " << WSAGetLastError() << "\n";
+//            closesocket(my_sock);
+//            WSACleanup();
+//            return -1;
+//        }
+//    while (1) {
+//        cout << "S<=C:";
+//        string SS;
+//        getline(cin, SS);
+//
+//        if (SS == "quit") break;
+//        sendto(my_sock, (char*)&SS[0], SS.size(), 0,
+//            (sockaddr*)&Daddr, sizeof(Daddr));
+//        sockaddr_in SRaddr;
+//        int SRaddr_size = sizeof(SRaddr);
+//        int n = recvfrom(my_sock, buff, sizeof(buff), 0, 
+//            (sockaddr*)&SRaddr, &SRaddr_size);
+//        if (n == SOCKET_ERROR) {
+//            cout << "RECVFROM() ERROR:" << WSAGetLastError() << "\n";
+//            closesocket(my_sock);
+//            WSACleanup();  return -1;
+//        }
+//        buff[n] = '\0';
+//
+//        cout << "S=>C:" << buff << "\n";
+//    }
+//    closesocket(my_sock);
+//    WSACleanup(); 
+//    return 0;
+//}
+
+//client
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#include <winsock2.h>
+#include <string>
+#include <windows.h>
+#include <iostream>
+#include <sstream>
+#include <map>
+#pragma comment(lib, "Ws2_32.lib")
+#pragma warning(disable: 4996)
+using namespace std;
+
+#define PORT 666
+#define SERVERADDR "127.0.0.1"
+#define AUTH_PREFIX "AUTH:"
+#define MAX_BUFFER_SIZE 1024
+#define MAX_AUTH_ATTEMPTS 3 
+
+
+
+int main() {
+    setlocale(LC_ALL, "Russian");
+    char buff[10 * 1024];
+    cout << "UDP Client\n";
+
+    // Инициализация Winsock
+    if (WSAStartup(0x202, (WSADATA*)&buff)) {
+        cerr << "WSAStartup ERROR: " << WSAGetLastError() << endl;
+        return -1;
+    }
+
+    // Создание сокета
+    SOCKET my_sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (my_sock == INVALID_SOCKET) {
+        cerr << "SOCKET() ERROR: " << WSAGetLastError() << endl;
+        WSACleanup();
+        return -1;
+    }
+
+    sockaddr_in Daddr;
+    Daddr.sin_family = AF_INET;
+    Daddr.sin_port = htons(PORT);
+
+    // Определение IP-адреса сервера
+    HOSTENT* hst = gethostbyname(SERVERADDR);
+    if (!hst) {
+        cerr << "Unknown Host: " << WSAGetLastError() << endl;
+        closesocket(my_sock);
+        WSACleanup();
+        return -1;
+    }
+    Daddr.sin_addr.s_addr = ((unsigned long**)hst->h_addr_list)[0][0];
+
+    bool authenticated = false;
+    for (int attempt = 0; attempt < MAX_AUTH_ATTEMPTS; ++attempt) {
+        // Запрос имени пользователя и пароля
+        string username, password;
+        cout << "Попытка " << attempt + 1 << "/" << MAX_AUTH_ATTEMPTS << endl;
+        cout << "Имя: ";
+        getline(cin, username);
+        cout << "Пароль: ";
+        getline(cin, password);
+
+        // Формирование запроса на авторизацию
+        string auth_message = "AUTH:" + username + ":" + password;
+
+        // Отправка запроса на авторизацию
+        sendto(my_sock, auth_message.c_str(), auth_message.size(), 0,
+            (sockaddr*)&Daddr, sizeof(Daddr));
+
+        // Получение ответа от сервера
+        sockaddr_in SRaddr;
+        int SRaddr_size = sizeof(SRaddr);
+        int n = recvfrom(my_sock, buff, sizeof(buff) - 1, 0,
+            (sockaddr*)&SRaddr, &SRaddr_size);
+        if (n == SOCKET_ERROR) {
+            cerr << "RECVFROM() ERROR: " << WSAGetLastError() << endl;
+            closesocket(my_sock);
+            WSACleanup();
+            return -1;
+        }
+        buff[n] = '\0';
+        string response(buff);
+
+        // Проверка ответа сервера
+        if (response == "OK") {
+            cout << "Authentication successful.\n";
+            authenticated = true;
+            break;
+        }
+        else {
+            cerr << "Аутентификация не удалась: " << response << endl;
+            if (attempt < MAX_AUTH_ATTEMPTS - 1) {
+                cout << "Повторная попытка...\n";
+            }
+        }
+    }
+
+    if (authenticated) {
+        // Режим эхо-запросов
+        while (true) {
+            cout << "S<=C:";
+            string message;
+            getline(cin, message);
+
+            if (message == "quit") break;
+
+            sendto(my_sock, message.c_str(), message.size(), 0,
+                (sockaddr*)&Daddr, sizeof(Daddr));
+
+            sockaddr_in SRaddr; // Обязательно объявлять внутри цикла, т.к. может поменяться адрес
+            int SRaddr_size = sizeof(SRaddr);
+            int n = recvfrom(my_sock, buff, sizeof(buff) - 1, 0,
+                (sockaddr*)&SRaddr, &SRaddr_size);
+            if (n == SOCKET_ERROR) {
+                cerr << "RECVFROM() ERROR: " << WSAGetLastError() << endl;
+                closesocket(my_sock);
+                WSACleanup();
+                return -1;
+            }
+            buff[n] = '\0';
+            cout << "S=>C:" << buff << endl;
+        }
+    }
+    else {
+        cerr << "Достигнуто максимальное количество попыток. Выход.\n";
+    }
+
+    closesocket(my_sock);
+    WSACleanup();
+    return 0;
+}

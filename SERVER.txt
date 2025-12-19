@@ -1,0 +1,298 @@
+// UDP-эхо сервер
+//#define _WINSOCK_DEPRECATED_NO_WARNINGS
+//#include <winsock2.h> 
+//#include <windows.h>
+//#include <string>
+//#include <iostream>
+//#pragma comment(lib, "Ws2_32.lib")
+//
+//#pragma warning(disable: 4996)
+//using namespace std;
+//#define PORT 666
+//#define sHELLO "Hello, STUDENT\n"
+//int main() {
+//    char buff[1024];
+//    cout << "UDP DEMO ECHO-SERVER\n";
+//
+//    if (WSAStartup(0x202, (WSADATA*)&buff[0]))
+//    {
+//        cout << "WSAStartup error: " << WSAGetLastError();
+//        return -1;
+//    }
+//    SOCKET Lsock;
+//
+//    Lsock = socket(AF_INET, SOCK_DGRAM, 0);
+//    if (Lsock == INVALID_SOCKET) { 
+//        cout << "SOCKET() ERROR: " << WSAGetLastError();e
+//        WSACleanup();
+//        return -1;
+//    }
+//
+//    sockaddr_in Laddr; 
+//    Laddr.sin_family = AF_INET;  
+//    Laddr.sin_addr.s_addr = INADDR_ANY; 
+//    Laddr.sin_port = htons(PORT);
+//    if (bind(Lsock, (sockaddr*)&Laddr, sizeof(Laddr)))
+//    {
+//        cout << "BIND ERROR:" << WSAGetLastError();
+//        closesocket(Lsock);
+//        WSACleanup();
+//        return -1;
+//    }
+//
+//    while (1) { 
+//        sockaddr_in    Caddr; 
+//        int Caddr_size = sizeof(Caddr);
+//        int bsize = recvfrom(Lsock, &buff[0], sizeof(buff) - 1, 0,
+//            (sockaddr*)&Caddr, &Caddr_size);
+//
+//        if (bsize == SOCKET_ERROR)
+//            cout << "RECVFROM() ERROR:" << WSAGetLastError();
+//        HOSTENT* hst;
+//        hst = gethostbyaddr((char*)&Caddr.sin_addr, 4, AF_INET); 
+//        cout << "NEW DATAGRAM!\n" <<
+//            ((hst) ? hst->h_name : "Unknown host") << "/n" << 
+//            inet_ntoa(Caddr.sin_addr) << "/n" << 
+//            ntohs(Caddr.sin_port) << '\n';  
+//
+//        buff[bsize] = '\0'; 
+//        cout << "C=>S:" << buff << '\n'; 
+//
+//        sendto(Lsock, &buff[0], bsize, 0, (sockaddr*)&Caddr, sizeof(Caddr));
+//    }      return 0;
+//}
+
+////server
+//#define _WINSOCK_DEPRECATED_NO_WARNINGS
+//#include <winsock2.h>
+//#include <string>
+//#include <iostream>
+//#include <sstream>
+//#include <map>  // Added for the map
+//#include <vector>
+//#pragma comment(lib, "Ws2_32.lib")
+//#pragma warning(disable: 4996)
+//using namespace std;
+//
+//#define PORT 666
+//#define AUTH_PREFIX "AUTH:"
+//#define MAX_BUFFER_SIZE 1024
+//
+//// Функция для разделения строки по разделителю
+//vector<string> split(const string& str, char delimiter) {
+//    vector<string> tokens;
+//    string token;
+//    stringstream ss(str);
+//    while (getline(ss, token, delimiter)) {
+//        tokens.push_back(token);
+//    }
+//    return tokens;
+//}
+//
+//
+//int main() {
+//    char buff[MAX_BUFFER_SIZE];
+//    cout << "UDP Auth Demo Server\n";
+//
+//    // Инициализация Winsock
+//    if (WSAStartup(0x202, (WSADATA*)&buff[0])) {
+//        cerr << "WSAStartup error: " << WSAGetLastError() << endl;
+//        return -1;
+//    }
+//
+//    // Создание сокета
+//    SOCKET Lsock = socket(AF_INET, SOCK_DGRAM, 0);
+//    if (Lsock == INVALID_SOCKET) {
+//        cerr << "SOCKET() ERROR: " << WSAGetLastError() << endl;
+//        WSACleanup();
+//        return -1;
+//    }
+//
+//    // Привязка сокета к локальному адресу
+//    sockaddr_in Laddr;
+//    Laddr.sin_family = AF_INET;
+//    Laddr.sin_addr.s_addr = INADDR_ANY;
+//    Laddr.sin_port = htons(PORT);
+//
+//    if (bind(Lsock, (sockaddr*)&Laddr, sizeof(Laddr))) {
+//        cerr << "BIND ERROR: " << WSAGetLastError() << endl;
+//        closesocket(Lsock);
+//        WSACleanup();
+//        return -1;
+//    }
+//
+//    map<string, string> valid_users = {
+//        {"user1", "pass1"},
+//        {"user2", "pass2"}
+//    };
+//
+//    // Главный цикл обработки пакетов
+//    while (true) {
+//        sockaddr_in Caddr;
+//        int Caddr_size = sizeof(Caddr);
+//        int bsize = recvfrom(Lsock, &buff[0], MAX_BUFFER_SIZE - 1, 0,
+//            (sockaddr*)&Caddr, &Caddr_size);
+//
+//        if (bsize == SOCKET_ERROR) {
+//            cerr << "RECVFROM() ERROR: " << WSAGetLastError() << endl;
+//            continue;
+//        }
+//
+//        buff[bsize] = '\0';
+//        string received_message(buff);
+//
+//        // Проверка на запрос авторизации
+//        if (received_message.rfind(AUTH_PREFIX, 0) == 0) {
+//            // Process authentication request
+//            string auth_data = received_message.substr(strlen(AUTH_PREFIX));
+//            vector<string> credentials = split(auth_data, ':');
+//
+//            if (credentials.size() == 2) {
+//                string username = credentials[0];
+//                string password = credentials[1];
+//
+//                // Проверка учетных данных
+//                if (valid_users.count(username) && valid_users[username] == password) {
+//                    cout << "Authentication successful for user: " << username << endl;
+//                    const char* ok_message = "OK";
+//                    sendto(Lsock, ok_message, strlen(ok_message), 0,
+//                        (sockaddr*)&Caddr, sizeof(Caddr));
+//                }
+//                else {
+//                    cout << "Authentication failed for user: " << username << endl;
+//                    const char* error_message = "ERROR: Authentication failed";
+//                    sendto(Lsock, error_message, strlen(error_message), 0,
+//                        (sockaddr*)&Caddr, sizeof(Caddr));
+//                }
+//            }
+//            else {
+//                const char* error_message = "ERROR: Invalid authentication format";
+//                sendto(Lsock, error_message, strlen(error_message), 0,
+//                    (sockaddr*)&Caddr, sizeof(Caddr));
+//            }
+//        }
+//        else {
+//            // Эхо-ответ (только если авторизация уже прошла –  в данном простом примере
+//            //предполагается, что кто первый прислал AUTH, тот и авторизован.)
+//            cout << "C=>S:" << received_message << endl;
+//            sendto(Lsock, received_message.c_str(), received_message.size(), 0,
+//                (sockaddr*)&Caddr, sizeof(Caddr));
+//
+//        }
+//    }  // End of while(true) loop
+//
+//    closesocket(Lsock);
+//    WSACleanup();
+//    return 0;
+//}
+//server
+#define _WINSOCK_DEPRECATED_NO_WARNINGS
+#include <winsock2.h>
+#include <string>
+#include <iostream>
+#include <sstream>
+#include <map>
+#pragma comment(lib, "Ws2_32.lib")
+#pragma warning(disable: 4996)
+using namespace std;
+
+#define PORT 666
+#define AUTH_PREFIX "AUTH:"
+#define MAX_BUFFER_SIZE 1024
+
+int main() {
+    setlocale(LC_ALL, "Russian");
+    char buff[MAX_BUFFER_SIZE];
+    cout << "UDP Server\n";
+
+    if (WSAStartup(0x202, (WSADATA*)&buff[0])) {
+        cerr << "WSAStartup error: " << WSAGetLastError() << endl;
+        return -1;
+    }
+
+    // Создание сокета
+    SOCKET Lsock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (Lsock == INVALID_SOCKET) {
+        cerr << "SOCKET() ERROR: " << WSAGetLastError() << endl;
+        WSACleanup();
+        return -1;
+    }
+
+    // Привязка сокета к локальному адресу
+    sockaddr_in Laddr;
+    Laddr.sin_family = AF_INET;
+    Laddr.sin_addr.s_addr = INADDR_ANY;
+    Laddr.sin_port = htons(PORT);
+
+    if (bind(Lsock, (sockaddr*)&Laddr, sizeof(Laddr))) {
+        cerr << "BIND ERROR: " << WSAGetLastError() << endl;
+        closesocket(Lsock);
+        WSACleanup();
+        return -1;
+    }
+
+    map<string, string> valid_users = {
+        {"user1", "pass1"},
+        {"user2", "pass2"}
+    };
+
+    // Главный цикл обработки пакетов
+    while (true) {
+        sockaddr_in Caddr;
+        int Caddr_size = sizeof(Caddr);
+        int bsize = recvfrom(Lsock, &buff[0], MAX_BUFFER_SIZE - 1, 0,
+            (sockaddr*)&Caddr, &Caddr_size);
+
+        if (bsize == SOCKET_ERROR) {
+            cerr << "RECVFROM() ERROR: " << WSAGetLastError() << endl;
+            continue;
+        }
+
+        buff[bsize] = '\0';
+        string received_message(buff);
+
+        // Проверка на запрос авторизации
+        if (received_message.rfind(AUTH_PREFIX, 0) == 0) {
+            string auth_data = received_message.substr(strlen(AUTH_PREFIX));
+
+            // Поиск первого разделителя ':'
+            size_t first_colon = auth_data.find(':');
+
+            if (first_colon != string::npos) {
+                string username = auth_data.substr(0, first_colon);
+                string password = auth_data.substr(first_colon + 1);
+
+                // Проверка учетных данных
+                if (valid_users.count(username) && valid_users[username] == password) {
+                    cout << "Аутентификация пользователя прошла успешно: " << username << " : True" << endl;
+                    const char* ok_message = "OK";
+                    sendto(Lsock, ok_message, strlen(ok_message), 0,
+                        (sockaddr*)&Caddr, sizeof(Caddr));
+                }
+                else {
+                    cout << "Аутентификация пользователя: " << username << " : False" << endl;
+                    const char* error_message = "ERROR";
+                    sendto(Lsock, error_message, strlen(error_message), 0,
+                        (sockaddr*)&Caddr, sizeof(Caddr));
+                }
+            }
+            else {
+                const char* error_message = "ERROR: Неверный формат аутентификации";
+                sendto(Lsock, error_message, strlen(error_message), 0,
+                    (sockaddr*)&Caddr, sizeof(Caddr));
+            }
+        }
+        else {
+            // Эхо-ответ (только если авторизация уже прошла 
+            //предполагается, что кто первый прислал AUTH, тот и авторизован.)
+            cout << "C=>S:" << received_message << endl;
+            sendto(Lsock, received_message.c_str(), received_message.size(), 0,
+                (sockaddr*)&Caddr, sizeof(Caddr));
+
+        }
+    }  // End of while(true) loop
+
+    closesocket(Lsock);
+    WSACleanup();
+    return 0;
+}
